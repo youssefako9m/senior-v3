@@ -1,40 +1,36 @@
 const { Client } = require('discord.js-selfbot-v13');
 const { joinVoiceChannel } = require('@discordjs/voice');
-// FIXED: Added patchVoice: true and suspended user setting sync to prevent the 'all' crash
-const client = new Client({ 
-    checkUpdate: false,
-    patchVoice: true,
-    syncStatus: false 
-});
+const client = new Client({ checkUpdate: false });
 const config = require('./config.json');
 
+// This part tells the bot to use Railway Variables first
+const TOKEN = process.env.TOKEN || config.Token;
+const GUILD_ID = process.env.GUILD || config.Guild;
+const CHANNEL_ID = process.env.CHANNEL || config.Channel;
+
 client.on('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-  await joinVC(client, config);
+  console.log(`Successfully logged in as: ${client.user.tag}`);
+  
+  // Try to join VC immediately on startup
+  joinVC();
 });
 
+// If you get kicked or the connection drops, this joins back
 client.on('voiceStateUpdate', async (oldState, newState) => {
   if (oldState.member.id !== client.user.id) return;
   
-  const targetChannel = process.env.CHANNEL || config.Channel;
-
-  if (newState.channelId !== targetChannel) {
-      console.log("Not in target channel, re-joining...");
-      await joinVC(client, config);
+  if (!newState.channelId || newState.channelId !== CHANNEL_ID) {
+    console.log("Disconnected or moved. Rejoining target channel...");
+    joinVC();
   }
 });
 
-client.login(process.env.TOKEN || config.Token);
-
-async function joinVC(client, config) {
-  const guildId = process.env.GUILD || config.Guild;
-  const channelId = process.env.CHANNEL || config.Channel;
-
-  const guild = client.guilds.cache.get(guildId);
-  if (!guild) return console.log("Guild not found!");
-
-  const voiceChannel = guild.channels.cache.get(channelId);
-  if (!voiceChannel) return console.log("Voice Channel not found!");
+function joinVC() {
+  const guild = client.guilds.cache.get(GUILD_ID);
+  if (!guild) return console.error("Error: Guild (Server) ID not found or account is not in that server.");
+  
+  const voiceChannel = guild.channels.cache.get(CHANNEL_ID);
+  if (!voiceChannel) return console.error("Error: Voice Channel ID not found.");
 
   try {
     joinVoiceChannel({
@@ -42,10 +38,17 @@ async function joinVC(client, config) {
       guildId: guild.id,
       adapterCreator: guild.voiceAdapterCreator,
       selfDeaf: false,
-      selfMute: true
+      selfMute: true // Set to false if you want your mic to be 'open'
     });
-    console.log(`Successfully joined ${voiceChannel.name}`);
-  } catch (err) {
-    console.error("Error joining VC:", err);
+    console.log(`Joined VC: ${voiceChannel.name} in ${guild.name}`);
+  } catch (error) {
+    console.error("Failed to join voice channel:", error);
   }
+}
+
+// Log in using the Token from Railway
+if (!TOKEN || TOKEN === "tokenhere" || TOKEN === "") {
+    console.error("ERROR: No Token found. Make sure you added 'TOKEN' to Railway Variables!");
+} else {
+    client.login(TOKEN);
 }
