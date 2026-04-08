@@ -1,52 +1,44 @@
-process.on('unhandledRejection', (reason) => {
+// 1. THE CRASH PATCH (Must be at the very top)
+process.on('unhandledRejection', (reason, promise) => {
     if (reason?.message?.includes("reading 'all'")) return;
     console.error('Unhandled Rejection:', reason);
 });
 
 const { Client } = require('discord.js-selfbot-v13');
 const { joinVoiceChannel } = require('@discordjs/voice');
+const client = new Client({ 
+    checkUpdate: false,
+    patchVoice: true // Helps with voice stability
+});
+const config = require('./config.json');
 
-const GUILD_ID = process.env.GUILD;
-const CHANNEL_ID = process.env.CHANNEL;
-const tokens = process.env.TOKEN ? process.env.TOKEN.split(',') : [];
+// Using Railway Variables
+const TOKEN = process.env.TOKEN  config.Token;
+const GUILD_ID = process.env.GUILD  config.Guild;
+const CHANNEL_ID = process.env.CHANNEL  config.Channel;
 
-if (tokens.length === 0) {
-    console.error("ERROR: No tokens found in Railway Variables!");
-    process.exit(1);
-}
-
-tokens.forEach((token, index) => {
-    const t = token.trim();
-    if (!t) return;
-
-    const client = new Client({ checkUpdate: false, patchVoice: true });
-
-    client.on('ready', async () => {
-        // Simplified logging to avoid backtick errors
-        console.log("Account " + (index + 1) + " is online: " + client.user.tag);
-        joinVC(client);
-    });
-
-    client.on('voiceStateUpdate', async (oldState, newState) => {
-        if (oldState.member.id !== client.user.id) return;
-        if (!newState.channelId  newState.channelId !== CHANNEL_ID) {
-            console.log("Account " + client.user.username + " rejoining VC...");
-            setTimeout(() => joinVC(client), 5000);
-        }
-    });
-
-    client.login(t).catch(err => {
-        console.error("Token " + (index + 1) + " login failed.");
-    });
+client.on('ready', async () => {
+    console.log(Successfully logged in as: ${client.user.tag});
+    joinVC();
 });
 
-function joinVC(client) {
-    const guild = client.guilds.cache.get(GUILD_ID);
-    const voiceChannel = guild?.channels.cache.get(CHANNEL_ID);
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    // Only care if it's OUR account moving
+    if (oldState.member.id !== client.user.id) return;
 
-    if (!guild  !voiceChannel) {
-        return console.error("Server or Channel ID is wrong in Railway variables!");
+    // If disconnected or moved to a different channel, join back
+    if (!newState.channelId  newState.channelId !== CHANNEL_ID) {
+        console.log("Detected voice state change. Rejoining target channel...");
+        setTimeout(() => joinVC(), 5000); // 5 second delay to prevent spamming
     }
+});
+
+function joinVC() {
+    const guild = client.guilds.cache.get(GUILD_ID);
+    if (!guild) return console.error("Error: Guild ID not found. Check your Railway Variables!");
+
+    const voiceChannel = guild.channels.cache.get(CHANNEL_ID);
+    if (!voiceChannel) return console.error("Error: Channel ID not found. Check your Railway Variables!");
 
     try {
         joinVoiceChannel({
@@ -56,8 +48,18 @@ function joinVC(client) {
             selfDeaf: false,
             selfMute: true
         });
-        console.log("Account " + client.user.username + " joined: " + voiceChannel.name);
+        console.log(Joined VC: ${voiceChannel.name} in ${guild.name});
     } catch (error) {
-        console.error("Voice Error for " + client.user.username + ":", error);
+        console.error("Failed to join voice channel:", error);
     }
+}
+
+// Security Check & Login
+if (!TOKEN  TOKEN === "tokenhere" 
+ TOKEN === "") {
+    console.error("ERROR: No Token found in Railway Variables!");
+} else {
+    client.login(TOKEN).catch(err => {
+        console.error("Login Failed! Check if your Token is still valid.");
+    });
 }
