@@ -26,6 +26,7 @@ tokens.forEach((token, index) => {
     const client = new Client({ checkUpdate: false, patchVoice: true });
 
     client.on('ready', async () => {
+        // FIXED LINE BELOW (Uses backticks  )
         console.log([Account ${index + 1}] logged in as: ${client.user.tag});
         joinVC(client);
     });
@@ -39,7 +40,7 @@ tokens.forEach((token, index) => {
     });
 
     client.login(t).catch(err => {
-        console.error([Token ${index + 1}] Login Failed!);
+        console.error([Token ${index + 1}] Login Failed! Check your token.);
     });
 });
 
