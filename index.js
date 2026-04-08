@@ -6,11 +6,8 @@ process.on('unhandledRejection', (reason) => {
 const { Client } = require('discord.js-selfbot-v13');
 const { joinVoiceChannel } = require('@discordjs/voice');
 
-// 1. Get IDs from Railway Variables
 const GUILD_ID = process.env.GUILD;
 const CHANNEL_ID = process.env.CHANNEL;
-
-// 2. Get Tokens (split by comma)
 const tokens = process.env.TOKEN ? process.env.TOKEN.split(',') : [];
 
 if (tokens.length === 0) {
@@ -18,7 +15,6 @@ if (tokens.length === 0) {
     process.exit(1);
 }
 
-// 3. Start a client for EVERY token
 tokens.forEach((token, index) => {
     const t = token.trim();
     if (!t) return;
@@ -26,21 +22,21 @@ tokens.forEach((token, index) => {
     const client = new Client({ checkUpdate: false, patchVoice: true });
 
     client.on('ready', async () => {
-        // FIXED LINE BELOW (Uses backticks  )
-        console.log([Account ${index + 1}] logged in as: ${client.user.tag});
+        // Simplified logging to avoid backtick errors
+        console.log("Account " + (index + 1) + " is online: " + client.user.tag);
         joinVC(client);
     });
 
     client.on('voiceStateUpdate', async (oldState, newState) => {
         if (oldState.member.id !== client.user.id) return;
         if (!newState.channelId  newState.channelId !== CHANNEL_ID) {
-            console.log([${client.user.username}] Disconnected. Rejoining...);
+            console.log("Account " + client.user.username + " rejoining VC...");
             setTimeout(() => joinVC(client), 5000);
         }
     });
 
     client.login(t).catch(err => {
-        console.error([Token ${index + 1}] Login Failed! Check your token.);
+        console.error("Token " + (index + 1) + " login failed.");
     });
 });
 
@@ -49,7 +45,7 @@ function joinVC(client) {
     const voiceChannel = guild?.channels.cache.get(CHANNEL_ID);
 
     if (!guild  !voiceChannel) {
-        return console.error([${client.user?.username || 'Unknown'}] Server or Channel not found!);
+        return console.error("Server or Channel ID is wrong in Railway variables!");
     }
 
     try {
@@ -60,8 +56,8 @@ function joinVC(client) {
             selfDeaf: false,
             selfMute: true
         });
-        console.log([${client.user.username}] Joined: ${voiceChannel.name});
+        console.log("Account " + client.user.username + " joined: " + voiceChannel.name);
     } catch (error) {
-        console.error([${client.user.username}] Voice Error:, error);
+        console.error("Voice Error for " + client.user.username + ":", error);
     }
 }
